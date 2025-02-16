@@ -1,4 +1,5 @@
 import streamlit as st
+import datetime
 from db import get_connection
 
 def show_task_page1():
@@ -12,74 +13,96 @@ def show_task_page1():
     conn = get_connection()
     c = conn.cursor()
 
-    # --- Group Management ---
-    st.subheader("➕ Create New Group")
-    new_group_name = st.text_input("Group Name")
-    if st.button("Create Group"):
-        c.execute("INSERT INTO groups (group_name, created_by) VALUES (?,?)", (new_group_name, username))
-        conn.commit()
-        st.success(f"Group '{new_group_name}' created!")
+    # --- Date Navigation ---
+    st.subheader("📅 Task Date")
+    today = datetime.date.today()
+    if "task_date" not in st.session_state:
+        st.session_state.task_date = today
 
-    # --- Task Management ---
-    st.subheader("➕ Add Task")
-    c.execute("SELECT group_id, group_name FROM groups WHERE created_by=?", (username,))
-    groups = c.fetchall()
-    group_options = {name: gid for gid, name in groups}
-    selected_group = st.selectbox("Choose Group", list(group_options.keys()))
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("⏪ Previous Day"):
+            st.session_state.task_date -= datetime.timedelta(days=1)
+            st.rerun()
+    with col2:
+        st.write(st.session_state.task_date.strftime("%Y-%m-%d"))
+    with col3:
+        if st.button("⏩ Next Day"):
+            st.session_state.task_date += datetime.timedelta(days=1)
+            st.rerun()
 
-    task_name = st.text_input("Task Name")
-    notification_days = st.number_input("Notification Days Before Due", min_value=0, max_value=365, value=7)
-    due_date = st.date_input("Due Date")
+    # --- View Selection ---
+    st.subheader("👓 View Options")
+    view_options = ["📅 Upcoming Tasks", "📅 All Tasks for Day"]
+    selected_view = st.radio("Select View", view_options, horizontal=True)
 
-    if st.button("Add Task"):
-        c.execute(
-            "INSERT INTO tasks (group_id, task_name, notification_days, due_date, created_by) VALUES (?,?,?,?,?)",
-            (group_options[selected_group], task_name, notification_days, due_date.strftime('%Y-%m-%d'), username)
-        )
-        conn.commit()
-        st.success(f"Task '{task_name}' added to '{selected_group}'!")
-
-    # --- Display Tasks ---
+    # --- Task Display ---
     st.subheader("📋 Task List")
-    # Determine the appropriate WHERE clause based on the filter in session state
-    where_clause = "WHERE created_by=?"
-    params = [username]
 
-    if "task_filter" in st.session_state and st.session_state.task_filter:
-        if st.session_state.task_filter == "pending":
-            where_clause += " AND completed=0"
-        elif st.session_state.task_filter == "completed":
-            where_clause += " AND completed=1"
-
-    sql_query = f"""
-        SELECT task_id, group_id, task_name, due_date, completed FROM tasks 
-        {where_clause}
-    """
-    c.execute(sql_query, params)
+    # Load tasks based on selected view
+    task_date_str = st.session_state.task_date.strftime("%Y-%m-%d")
+    if selected_view == "📅 Upcoming Tasks":
+        c.execute(
+            """
+            SELECT task_id, group_id, task_name, due_date, completed FROM tasks
+            WHERE created_by=? AND due_date >= ?
+            ORDER BY due_date ASC
+            LIMIT 5
+            """,
+            (username, task_date_str)
+        )
+    else:  # All Tasks for Day
+        c.execute(
+            """
+            SELECT task_id, group_id, task_name, due_date, completed FROM tasks
+            WHERE created_by=? AND due_date = ?
+            """,
+            (username, task_date_str)
+        )
     tasks = c.fetchall()
 
-    # After displaying the tasks reset the filter to none
-    #Reset filter only if is not none
-    if "task_filter" in st.session_state and st.session_state.task_filter:
-        del st.session_state["task_filter"]
+    # Display tasks
+    if tasks:
+        for task in tasks:
+            task_id, group_id, task_name, due_date, completed = task
+            col1, col2, col3 = st.columns([6, 2, 2])
+            with col1:
+                if completed:
+                    st.markdown(f"~~{task_name}~~")
+                else:
+                    st.write(task_name)
+                st.caption(f"Due: {due_date}")
+            with col2:
+                if not completed:
+                    if st.button("✅ Complete", key=f"complete_{task_id}"):
+                        c.execute("UPDATE tasks SET completed=1 WHERE task_id=?", (task_id,))
+                        conn.commit()
+                        st.rerun()
+                else:
+                    st.write("Done")
+            with col3:
+                if st.button("⏰ Reminder", key=f"reminder_{task_id}"):
+                    st.info(f"Reminder sent for task: {task_name}")
 
-    for task in tasks:
-        task_id, group_id, task_name, due_date, completed = task
-        col1, col2, col3 = st.columns([6, 2, 2])
-        with col1:
-            if completed:
-                st.markdown(f"~~{task_name}~~")
-            else:
-                st.write(task_name)
-            st.caption("Due: " + due_date)
-        with col2:
-            if not completed:
-                if st.button("Complete", key=f"complete_{task_id}"):
-                    c.execute("UPDATE tasks SET completed=1 WHERE task_id=?", (task_id,))
-                    conn.commit()
-                    st.rerun()
-            else:
-                st.write("Done")
-        with col3:
-            if st.button("Send Reminder", key=f"reminder_{task_id}"):
-                st.info(f"Reminder sent for task: {task_name}")
+        # Load More Button (if applicable)
+        if selected_view == "📅 Upcoming Tasks":
+            c.execute(
+                """
+                SELECT COUNT(*) FROM tasks
+                WHERE created_by=? AND due_date >= ?
+                """,
+                (username, task_date_str)
+            )
+            total_upcoming_tasks = c.fetchone()[0]
+            if total_upcoming_tasks > len(tasks):
+                if st.button("Load More"):
+                    # TODO: Implement proper pagination logic
+                    st.info("Loading more tasks (functionality to be implemented)")
+
+    else:
+        st.info("No tasks found for the selected date.")
+
+    # --- Add Task Button ---
+    if st.button("➕ Add Task"):
+        # TODO: Implement Add Task functionality
+        st.info("Adding task (functionality to be implemented)")

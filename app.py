@@ -3,7 +3,7 @@ import datetime
 from db import get_connection, create_tables, insert_presets
 from auth import login, register
 from tasks import check_notifications
-from pages import dashboard, profile, overdue_tasks, task_page1
+from pages import dashboard, profile, overdue_tasks, task_page1, group_page
 
 # Initialize database
 conn = get_connection()
@@ -49,7 +49,7 @@ if not st.session_state.logged_in:
         if st.session_state.show_register:
             with st.form("register_form"):
                 new_username = st.text_input("Username")
-                new_password = st.text_input("Password", type="password")
+                new_password = st.text_input("Password")
                 full_name = st.text_input("Full Name")
                 email = st.text_input("Email")
                 address = st.text_input("Address")
@@ -96,6 +96,7 @@ with st.sidebar:
     nav_options = {
         "📊 Dashboard": "Dashboard",
         "📝 Tasks": "Task Page1",
+        "🗂️ Task Groups": "Group Page",
         "⚠️ Overdue Tasks": "Overdue Tasks",
         "👤 User Profile": "User Profile"
     }
@@ -133,6 +134,8 @@ if st.session_state.current_page == "Dashboard":
     dashboard.show_dashboard()
 elif st.session_state.current_page == "Task Page1":
     task_page1.show_task_page1()
+elif st.session_state.current_page == "Group Page":
+    group_page.show_group_page()
 elif st.session_state.current_page == "Overdue Tasks":
     overdue_tasks.show_overdue_tasks()
 elif st.session_state.current_page == "User Profile":

@@ -1,10 +1,12 @@
 import sqlite3
 import datetime
+import streamlit as st
 
 DATABASE_NAME = 'task_manager.db'
 
 def get_connection():
-    return sqlite3.connect(DATABASE_NAME, check_same_thread=False)
+    conn = sqlite3.connect(DATABASE_NAME, check_same_thread=False)
+    return conn
 
 def create_tables(conn):
     c = conn.cursor()
@@ -18,7 +20,8 @@ def create_tables(conn):
             email TEXT,
             address TEXT,
             gender TEXT,
-            contact TEXT
+            contact TEXT,
+            view_preference TEXT DEFAULT 'calendar'
         )
     ''')
 
@@ -28,6 +31,8 @@ def create_tables(conn):
             group_id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT,
             created_by TEXT,
+            color TEXT,
+            remarks TEXT,
             FOREIGN KEY (created_by) REFERENCES users(username)
         )
     ''')
@@ -58,22 +63,7 @@ def create_tables(conn):
         )
     ''')
 
-    add_view_preference_column(conn)
     conn.commit()
-
-def add_view_preference_column(conn):
-    c = conn.cursor()
-    try:
-        # Check if column exists using PRAGMA
-        c.execute("PRAGMA table_info(users)")
-        columns = [col[1] for col in c.fetchall()]
-        if 'view_preference' not in columns:
-            c.execute("ALTER TABLE users ADD COLUMN view_preference TEXT DEFAULT 'calendar'")
-            conn.commit()
-            st.toast("Database schema updated successfully!")
-    except sqlite3.Error as e:
-        st.error(f"Database error: {str(e)}")
-
 
 
 def insert_presets(conn):
@@ -118,3 +108,19 @@ def insert_presets(conn):
                 (enrollment_template_id, task[0], task[1], task[2])
             )
         conn.commit()
+def get_group_color(conn, group_id):
+    c = conn.cursor()
+    c.execute("SELECT color FROM groups WHERE group_id=?", (group_id,))
+    result = c.fetchone()
+    if result:
+        return result[0]
+    else:
+        return "#8E44AD"
+
+def get_task_count(conn, group_id):
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM tasks WHERE group_id=? AND completed=1", (group_id,))
+    completed_tasks = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM tasks WHERE group_id=?", (group_id,))
+    total_tasks = c.fetchone()[0]
+    return completed_tasks, total_tasks
