@@ -12,10 +12,12 @@ def show_group_page():
     conn = get_connection()
     c = conn.cursor()
 
-    # Handle edit modal
+    # Handle modals
     if "edit_group" in st.session_state:
         edit_group_modal(st.session_state.edit_group)
-    
+    if "delete_group" in st.session_state:
+        delete_confirmation_modal(st.session_state.delete_group)
+
     add_group_modal()
 
     st.subheader("📚 List of Task Groups")
@@ -25,67 +27,109 @@ def show_group_page():
     if groups:
         for group in groups:
             group_id, group_name, color, remarks = group
-            with st.container(border=True):
-                cols = st.columns([0.02, 8, 2, 2])
-                # Color line
-                cols[0].markdown(f'<div style="border-left: 3px solid {color}; height: 80px;"></div>', 
-                               unsafe_allow_html=True)
+            with st.container(border=True) as container:
+                # Apply color to container border
+                st.markdown(f"""
+                    <style>
+                        div[data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="element-container"]:first-child {{
+                            border-left: 5px solid {color} !important;
+                        }}
+                    </style>
+                """, unsafe_allow_html=True)
                 
-                # Group info
-                with cols[1]:
+                cols = st.columns([6, 2, 2])
+                with cols[0]:
                     status = get_group_status(conn, group_id)
                     st.markdown(f"**{group_name}** {get_status_badge(status)}", unsafe_allow_html=True)
                     completed, total = get_task_count(conn, group_id)
                     st.caption(f"Tasks: {completed}/{total} completed")
                 
-                # Edit button
-                with cols[2]:
+                with cols[1]:
                     if st.button("✏️ Edit", key=f"edit_{group_id}"):
                         st.session_state.edit_group = group
+                        st.rerun()
                 
-                # Delete button
-                with cols[3]:
+                with cols[2]:
                     if st.button("🗑️ Delete", key=f"del_{group_id}"):
-                        if st.session_state.get("confirm_delete") != group_id:
-                            st.session_state.confirm_delete = group_id
-                        else:
-                            delete_group(group_id)
-                            st.session_state.pop("confirm_delete")
-                            st.rerun()
-                        
-                        if st.session_state.get("confirm_delete"):
-                            st.warning(f"Delete {group_name}?")
-                            if st.button("Confirm Delete"):
-                                delete_group(st.session_state.confirm_delete)
-                                st.session_state.pop("confirm_delete")
-                                st.rerun()
+                        st.session_state.delete_group = group
+                        st.rerun()
 
     else:
         st.info("No task groups found. Add one below!")
 
+def delete_confirmation_modal(group_data):
+    group_id, group_name, color, remarks = group_data
+    
+    @st.dialog(f"Delete {group_name}?", width="large")
+    def confirmation_dialog():
+        st.warning("Are you sure you want to delete this task group? All associated tasks will be removed!")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            if st.button("✅ Confirm Delete", type="primary", use_container_width=True):
+                try:
+                    username = st.session_state.get("username")
+                    conn = get_connection()
+                    c = conn.cursor()
+                    c.execute("DELETE FROM tasks WHERE group_id=?", (group_id,))
+                    c.execute("DELETE FROM groups WHERE group_id=? AND created_by=?", (group_id, username))
+                    conn.commit()
+                    st.success("Deleted successfully!")
+                    st.session_state.pop("delete_group", None)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                    conn.rollback()
+        with col2:
+            if st.button("❌ Cancel", use_container_width=True):
+                st.session_state.pop("delete_group", None)
+                st.rerun()
+    
+    confirmation_dialog()
+
+def delete_group(group_id):
+    # Remove any modal-related code from this function
+    # Just keep the database operations
+    username = st.session_state.get("username")
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("DELETE FROM tasks WHERE group_id=?", (group_id,))
+        c.execute("DELETE FROM groups WHERE group_id=? AND created_by=?", (group_id, username))
+        conn.commit()
+        st.success("Task group and associated tasks deleted successfully!")
+    except Exception as e:
+        st.error(f"Error deleting group: {str(e)}")
+        conn.rollback()
+
+# In pages/group_page.py
 def edit_group_modal(group_data):
     group_id, old_name, color, remarks = group_data
-    with st.form(f"edit_form_{group_id}"):
-        st.subheader(f"Editing: {old_name}")
-        new_name = st.text_input("Group Name", value=old_name)
-        new_color = st.color_picker("Color", value=color)
-        new_remarks = st.text_area("Remarks", value=remarks)
+    
+    @st.dialog(f"Edit Task Group: {old_name}", width="large")
+    def edit_dialog():
+        with st.form(key=f"edit_form_{group_id}"):
+            new_name = st.text_input("Group Name", value=old_name)
+            new_color = st.color_picker("Color", value=color)
+            new_remarks = st.text_area("Remarks", value=remarks)
+            
+            if st.form_submit_button("💾 Save Changes"):
+                conn = get_connection()
+                c = conn.cursor()
+                c.execute("""
+                    UPDATE groups 
+                    SET group_name=?, color=?, remarks=?
+                    WHERE group_id=?
+                """, (new_name, new_color, new_remarks, group_id))
+                conn.commit()
+                st.session_state.pop("edit_group", None)
+                st.rerun()
         
-        if st.form_submit_button("Save Changes"):
-            conn = get_connection()
-            c = conn.cursor()
-            c.execute("""
-                UPDATE groups 
-                SET group_name=?, color=?, remarks=?
-                WHERE group_id=?
-            """, (new_name, new_color, new_remarks, group_id))
-            conn.commit()
-            st.session_state.pop("edit_group")
+        if st.button("❌ Cancel"):
+            st.session_state.pop("edit_group", None)
             st.rerun()
-        
-        if st.button("Cancel"):
-            st.session_state.pop("edit_group")
-            st.rerun()
+    
+    # Open the dialog
+    edit_dialog()
 
 
 def add_group_modal():
