@@ -41,14 +41,27 @@ def show_task_page1():
 
     # --- Display Tasks ---
     st.subheader("📋 Task List")
-    c.execute(
-        """
+    # Determine the appropriate WHERE clause based on the filter in session state
+    where_clause = "WHERE created_by=?"
+    params = [username]
+
+    if "task_filter" in st.session_state and st.session_state.task_filter:
+        if st.session_state.task_filter == "pending":
+            where_clause += " AND completed=0"
+        elif st.session_state.task_filter == "completed":
+            where_clause += " AND completed=1"
+
+    sql_query = f"""
         SELECT task_id, group_id, task_name, due_date, completed FROM tasks 
-        WHERE created_by=?
-        """,
-        (username,)
-    )
+        {where_clause}
+    """
+    c.execute(sql_query, params)
     tasks = c.fetchall()
+
+    # After displaying the tasks reset the filter to none
+    #Reset filter only if is not none
+    if "task_filter" in st.session_state and st.session_state.task_filter:
+        del st.session_state["task_filter"]
 
     for task in tasks:
         task_id, group_id, task_name, due_date, completed = task

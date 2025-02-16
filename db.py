@@ -58,8 +58,24 @@ def create_tables(conn):
         )
     ''')
 
+    add_view_preference_column(conn)
     conn.commit()
-    
+
+def add_view_preference_column(conn):
+    c = conn.cursor()
+    try:
+        # Check if column exists using PRAGMA
+        c.execute("PRAGMA table_info(users)")
+        columns = [col[1] for col in c.fetchall()]
+        if 'view_preference' not in columns:
+            c.execute("ALTER TABLE users ADD COLUMN view_preference TEXT DEFAULT 'calendar'")
+            conn.commit()
+            st.toast("Database schema updated successfully!")
+    except sqlite3.Error as e:
+        st.error(f"Database error: {str(e)}")
+
+
+
 def insert_presets(conn):
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM templates")

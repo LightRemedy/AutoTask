@@ -17,8 +17,20 @@ if "logged_in" not in st.session_state:
         "show_register": False,
         "username": None,
         "mock_now": datetime.date.today(),
-        "current_page": "Dashboard"
+        "current_page": "Dashboard",
+        "task_filter": None,
     })
+
+    #Add the view_preference attribute to the session state
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT username FROM users")
+    all_users = c.fetchall()
+
+    if all_users:
+      st.session_state.view_preference = "calendar"
+    else:
+      st.session_state.view_preference = None
 
 # Authentication check
 if not st.session_state.logged_in:
@@ -52,12 +64,17 @@ if not st.session_state.logged_in:
         else:
             with st.form("login_form"):
                 username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
+                password = st.text_input("Password")
 
                 if st.form_submit_button("Login"):
                     if login(username, password):
                         st.session_state.logged_in = True
                         st.session_state.username = username
+                        conn = get_connection()
+                        c = conn.cursor()
+                        c.execute("SELECT view_preference FROM users WHERE username=?", (username,))
+                        view_preference = c.fetchone()[0]
+                        st.session_state.view_preference = view_preference
                         st.session_state.current_page = "Dashboard"
                         st.rerun()
                     else:
@@ -87,6 +104,7 @@ with st.sidebar:
     for display_name, page_name in nav_options.items():
         if st.button(display_name, use_container_width=True):
             st.session_state.current_page = page_name
+            st.session_state.task_filter = None
 
     # Admin-only time controls
     if st.session_state.username == "admin":
