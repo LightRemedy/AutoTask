@@ -1,42 +1,69 @@
-# pages/dashboard.py
 import streamlit as st
+import datetime
 from db import get_connection
-from tasks import get_tasks_by_template, mark_task_complete
+import calendar
+from streamlit_calendar import calendar as st_calendar
 
 def show_dashboard():
-    print("show_dashboard() function called") #debug
-    st.write("Dashboard Page Loaded")  # This is critical for debugging
-    st.title("Task Manager Dashboard")
+    st.title("📊 Dashboard")
+    username = st.session_state.get("username")
 
-    # Template selection (for simplicity, loading all templates)
+    if not username:
+        st.warning("Please log in to view the dashboard.")
+        return
+
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT template_id, template_name FROM templates")
-    templates = c.fetchall()
-    template_options = {name: tid for tid, name in templates}
-    selected_template = st.selectbox("Choose Template", list(template_options.keys()))
 
-    st.subheader(f"Tasks for Template: {selected_template}")
-    tasks = get_tasks_by_template(template_options[selected_template])
+    # --- Stats Section ---
+    st.subheader("📊 Statistics")
+    col1, col2 = st.columns(2)
+
+    # Total pending tasks
+    c.execute("SELECT COUNT(*) FROM tasks WHERE created_by=? AND completed=0", (username,))
+    pending_tasks = c.fetchone()[0]
+    col1.metric("Pending Tasks", value=pending_tasks)
+
+    # Total completed tasks
+    c.execute("SELECT COUNT(*) FROM tasks WHERE created_by=? AND completed=1", (username,))
+    completed_tasks = c.fetchone()[0]
+    col2.metric("Completed Tasks", value=completed_tasks)
+
+    # --- Calendar Section ---
+    st.subheader("📅 Interactive Calendar")
+    events = get_events(username)
+
+    calendar_options = {
+        "defaultView": "month",
+        "initialDate": datetime.date.today().strftime("%Y-%m-%d"),
+        "editable": False,
+        "height": 600,
+    }
+
+    calendar = st_calendar(events=events, options=calendar_options)
+
+def get_events(username):
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute(
+        """
+        SELECT task_name, due_date FROM tasks 
+        WHERE created_by=?
+        """,
+        (username,)
+    )
+    tasks = c.fetchall()
+
+    events = []
     for task in tasks:
-        task_id, task_name, due_date, completed = task
-        col1, col2, col3 = st.columns([6, 2, 2])
-        with col1:
-            if completed:
-                st.markdown(f"~~{task_name}~~")
-            else:
-                st.write(task_name)
-            st.caption("Due: " + due_date)
-        with col2:
-            if not completed:
-                if st.button("Complete", key=f"complete_{task_id}"):
-                    mark_task_complete(task_id)
-                    st.experimental_rerun()
-            else:
-                st.write("Done")
-        with col3:
-            if st.button("Send Reminder", key=f"reminder_{task_id}"):
-                st.info(f"Reminder sent for task: {task_name}")
+        task_name = task[0]
+        due_date_str = task[1]
+        due_date = datetime.datetime.strptime(due_date_str, "%Y-%m-%d").date()
 
-if __name__ == "__main__": #only runs if calling script directly
-    show_dashboard()
+        events.append({
+            "start": due_date.isoformat(),
+            "end": (due_date + datetime.timedelta(days=1)).isoformat(), #to show whole day on calendar
+            "title": task_name,
+        })
+    return events

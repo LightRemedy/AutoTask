@@ -1,24 +1,25 @@
 import streamlit as st
 from db import get_connection
 import re
+import sqlite3
 
 def login(username, password):
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
     user = c.fetchone()
-    
+
     if user:
         st.session_state.logged_in = True
         st.session_state.username = username
         return True
     return False
 
-def register(username, password, full_name, address, gender, contact):
-    if not username or not password:
-        st.error("Username and password are required")
+def register(username, password, full_name, email, address, gender, contact):
+    if not username or not password or not email:
+        st.error("Username, password, and email are required.")
         return False
-        
+
     if not is_valid_password(password):
         st.error("Password must contain:")
         st.error("- At least 8 characters")
@@ -26,13 +27,17 @@ def register(username, password, full_name, address, gender, contact):
         st.error("- At least one special character")
         return False
 
+    if not is_valid_email(email):
+        st.error("Invalid email format")
+        return False
+
     conn = get_connection()
     c = conn.cursor()
-    
+
     try:
         c.execute(
-            "INSERT INTO users (username, password, full_name, address, gender, contact) VALUES (?,?,?,?,?,?)",
-            (username, password, full_name, address, gender, contact)
+            "INSERT INTO users (username, password, full_name, email, address, gender, contact) VALUES (?,?,?,?,?,?,?)",
+            (username, password, full_name, email, address, gender, contact)
         )
         conn.commit()
         return True
@@ -53,3 +58,8 @@ def is_valid_password(password):
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         return False
     return True
+
+def is_valid_email(email):
+    # Basic email validation regex
+    email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return re.match(email_regex, email) is not None

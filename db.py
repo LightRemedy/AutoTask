@@ -1,4 +1,3 @@
-# db.py
 import sqlite3
 import datetime
 
@@ -9,17 +8,46 @@ def get_connection():
 
 def create_tables(conn):
     c = conn.cursor()
-    # Users table
+
+    # Users table (added email field)
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             password TEXT,
             full_name TEXT,
+            email TEXT,
             address TEXT,
             gender TEXT,
             contact TEXT
         )
     ''')
+
+    # Groups table (new)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS groups (
+            group_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_name TEXT,
+            created_by TEXT,
+            FOREIGN KEY (created_by) REFERENCES users(username)
+        )
+    ''')
+
+    # Tasks table (modified to include group_id and created_by)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            task_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER,
+            task_name TEXT,
+            notification_days INTEGER,
+            due_date TEXT,
+            completed INTEGER DEFAULT 0,
+            notified INTEGER DEFAULT 0,
+            created_by TEXT,
+            FOREIGN KEY (group_id) REFERENCES groups(group_id),
+            FOREIGN KEY (created_by) REFERENCES users(username)
+        )
+    ''')
+
     # Templates table
     c.execute('''
         CREATE TABLE IF NOT EXISTS templates (
@@ -29,31 +57,19 @@ def create_tables(conn):
             FOREIGN KEY(created_by) REFERENCES users(username)
         )
     ''')
-    # Tasks table with notified flag
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS tasks (
-            task_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            template_id INTEGER,
-            task_name TEXT,
-            notification_days INTEGER,
-            due_date TEXT,
-            completed INTEGER DEFAULT 0,
-            notified INTEGER DEFAULT 0,
-            FOREIGN KEY(template_id) REFERENCES templates(template_id)
-        )
-    ''')
-    conn.commit()
 
+    conn.commit()
+    
 def insert_presets(conn):
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM templates")
     count = c.fetchone()[0]
     if count == 0:
         # Insert preset templates
-        c.execute("INSERT INTO templates (template_name, created_by) VALUES (?,?)", 
+        c.execute("INSERT INTO templates (template_name, created_by) VALUES (?,?)",
                   ("Primary/Secondary School", "admin"))
         primary_template_id = c.lastrowid
-        c.execute("INSERT INTO templates (template_name, created_by) VALUES (?,?)", 
+        c.execute("INSERT INTO templates (template_name, created_by) VALUES (?,?)",
                   ("Enrollment for Uni", "admin"))
         enrollment_template_id = c.lastrowid
 
@@ -67,7 +83,7 @@ def insert_presets(conn):
         ]
         for task in primary_tasks:
             c.execute(
-                "INSERT INTO tasks (template_id, task_name, notification_days, due_date) VALUES (?,?,?,?)", 
+                "INSERT INTO tasks (template_id, task_name, notification_days, due_date) VALUES (?,?,?,?)",
                 (primary_template_id, task[0], task[1], task[2])
             )
 
@@ -82,7 +98,7 @@ def insert_presets(conn):
         ]
         for task in enrollment_tasks:
             c.execute(
-                "INSERT INTO tasks (template_id, task_name, notification_days, due_date) VALUES (?,?,?,?)", 
+                "INSERT INTO tasks (template_id, task_name, notification_days, due_date) VALUES (?,?,?,?)",
                 (enrollment_template_id, task[0], task[1], task[2])
             )
         conn.commit()
