@@ -5,6 +5,14 @@ from auth import login, register
 from tasks import check_notifications
 from pages import dashboard, profile, overdue_tasks, task_page1, group_page
 
+# ========== FIRST AND ONLY set_page_config ==========
+st.set_page_config(
+    page_title="AutoTask",
+    page_icon="📋",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
+
 # Initialize database
 conn = get_connection()
 create_tables(conn)
@@ -19,29 +27,18 @@ if "logged_in" not in st.session_state:
         "mock_now": datetime.date.today(),
         "current_page": "Dashboard",
         "task_filter": None,
+        "view_preference": None
     })
-
-    #Add the view_preference attribute to the session state
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT username FROM users")
-    all_users = c.fetchall()
-
-    if all_users:
-      st.session_state.view_preference = "calendar"
-    else:
-      st.session_state.view_preference = None
 
 # Authentication check
 if not st.session_state.logged_in:
-    st.set_page_config(initial_sidebar_state="collapsed")
     st.markdown("""
         <style>
             [data-testid="collapsedControl"] { display: none; }
+            .main > div { max-width: 800px; padding: 2rem; }
         </style>
     """, unsafe_allow_html=True)
 
-    # Login/Register Page
     col1, col2 = st.columns([1, 2])
     with col2:
         st.title("AutoTask Login" if not st.session_state.show_register else "User Registration")
@@ -49,7 +46,7 @@ if not st.session_state.logged_in:
         if st.session_state.show_register:
             with st.form("register_form"):
                 new_username = st.text_input("Username")
-                new_password = st.text_input("Password")
+                new_password = st.text_input("Password", type="password")  # Fixed password field
                 full_name = st.text_input("Full Name")
                 email = st.text_input("Email")
                 address = st.text_input("Address")
@@ -61,53 +58,56 @@ if not st.session_state.logged_in:
                         st.success("Registration successful! Please login.")
                         st.session_state.show_register = False
                         st.rerun()
+            
+            if st.button("← Back to Login"):  # Moved outside form
+                st.session_state.show_register = False
+                st.rerun()
         else:
             with st.form("login_form"):
                 username = st.text_input("Username")
-                password = st.text_input("Password")
+                password = st.text_input("Password", type="password")  # Fixed password field
 
                 if st.form_submit_button("Login"):
                     if login(username, password):
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
                         conn = get_connection()
                         c = conn.cursor()
                         c.execute("SELECT view_preference FROM users WHERE username=?", (username,))
-                        view_preference = c.fetchone()[0]
-                        st.session_state.view_preference = view_preference
-                        st.session_state.current_page = "Dashboard"
+                        result = c.fetchone()
+                        
+                        st.session_state.update({
+                            "logged_in": True,
+                            "username": username,
+                            "view_preference": result[0] if result else "calendar",
+                            "current_page": "Dashboard"
+                        })
                         st.rerun()
                     else:
                         st.error("Invalid credentials")
-
-        if st.button("Create New Account"):
-            st.session_state.show_register = True
-            st.rerun()
+            
+            if st.button("Create New Account"):  # Moved outside form
+                st.session_state.show_register = True
+                st.rerun()
+    
     st.stop()
 
 # Main app layout
-st.set_page_config(initial_sidebar_state="expanded")
-
-# Single sidebar navigation implementation
 with st.sidebar:
     st.title("AutoTask Navigation")
-
-    # Main navigation menu
-    nav_options = {
+    
+    # Original navigation buttons
+    nav_mapping = {
         "📊 Dashboard": "Dashboard",
-        "📝 Tasks": "Task Page1",
+        "📝 Tasks": "Task Page1", 
         "🗂️ Task Groups": "Group Page",
         "⚠️ Overdue Tasks": "Overdue Tasks",
         "👤 User Profile": "User Profile"
     }
-
-    # Create navigation buttons
-    for display_name, page_name in nav_options.items():
-        if st.button(display_name, use_container_width=True):
+    
+    for btn_text, page_name in nav_mapping.items():
+        if st.button(btn_text, use_container_width=True):
             st.session_state.current_page = page_name
-            st.session_state.task_filter = None
 
-    # Admin-only time controls
+    # Admin time controls
     if st.session_state.username == "admin":
         st.divider()
         st.header("⏰ Debug Controls")
@@ -115,7 +115,7 @@ with st.sidebar:
         if new_date != st.session_state.mock_now:
             st.session_state.mock_now = new_date
             st.rerun()
-
+        
         if st.button("⏩ Fast Forward 1 Day"):
             st.session_state.mock_now += datetime.timedelta(days=1)
             st.rerun()
@@ -127,7 +127,7 @@ with st.sidebar:
         st.session_state.username = None
         st.rerun()
 
-# Page content routing
+# Page routing
 check_notifications(st.session_state.mock_now)
 
 if st.session_state.current_page == "Dashboard":
@@ -140,3 +140,5 @@ elif st.session_state.current_page == "Overdue Tasks":
     overdue_tasks.show_overdue_tasks()
 elif st.session_state.current_page == "User Profile":
     profile.show_profile()
+
+conn.close()
