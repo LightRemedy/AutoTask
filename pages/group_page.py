@@ -12,14 +12,47 @@ def show_group_page():
     conn = get_connection()
     c = conn.cursor()
 
+    # Handle feedback messages
+    if "group_feedback" in st.session_state:
+        if st.session_state.group_feedback["type"] == "success":
+            st.success(st.session_state.group_feedback["message"])
+        else:
+            st.error(st.session_state.group_feedback["message"])
+        del st.session_state.group_feedback
+
     # Handle modals
     if "edit_group" in st.session_state:
         edit_group_modal(st.session_state.edit_group)
     if "delete_group" in st.session_state:
         delete_confirmation_modal(st.session_state.delete_group)
 
-    add_group_modal()
+    # Add Group Section
+    with st.expander("➕ Add New Task Group", expanded=False):
+        with st.form("add_group_form"):
+            group_name = st.text_input("Group Name", max_chars=50)
+            color = st.color_picker("Color", value="#8E44AD")
+            remarks = st.text_area("Remarks", max_chars=200)
+            
+            if st.form_submit_button("Create Task Group"):
+                try:
+                    c.execute(
+                        "INSERT INTO groups (group_name, created_by, color, remarks) VALUES (?,?,?,?)",
+                        (group_name, username, color, remarks),
+                    )
+                    conn.commit()
+                    st.session_state.group_feedback = {
+                        "type": "success",
+                        "message": f"Group '{group_name}' created successfully!"
+                    }
+                    st.rerun()
+                except Exception as e:
+                    st.session_state.group_feedback = {
+                        "type": "error",
+                        "message": f"Error creating group: {str(e)}"
+                    }
+                    st.rerun()
 
+    # List of Groups - RELIABLE VERSION WITH COLOR INDICATOR
     st.subheader("📚 List of Task Groups")
     c.execute("SELECT group_id, group_name, color, remarks FROM groups WHERE created_by=?", (username,))
     groups = c.fetchall()
@@ -27,16 +60,32 @@ def show_group_page():
     if groups:
         for group in groups:
             group_id, group_name, color, remarks = group
-            with st.container(border=True) as container:
-                # Apply color to container border
+            with st.container(border=True):
+                # Floating circle in top-left corner
                 st.markdown(f"""
                     <style>
-                        div[data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="element-container"]:first-child {{
-                            border-left: 5px solid {color} !important;
+                        .floating-circle-{group_id} {{
+                            position: absolute;
+                            top: -5px;
+                            left: -5px;
+                            width: 15px;
+                            height: 15px;
+                            border-radius: 50%;
+                            background-color: {color};
+                        }}
+                        .group-content {{
+                            position: relative;
+                            padding-left: 20px;
+                            display: flex;
+                            align-items: center;
+                            gap: 1rem;
                         }}
                     </style>
+                    <div class="floating-circle-{group_id}"></div>
+                    <div class="group-content">
                 """, unsafe_allow_html=True)
-                
+
+                # Content row
                 cols = st.columns([6, 2, 2])
                 with cols[0]:
                     status = get_group_status(conn, group_id)
@@ -54,8 +103,10 @@ def show_group_page():
                         st.session_state.delete_group = group
                         st.rerun()
 
+                st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.info("No task groups found. Add one below!")
+        st.info("No task groups found. Add one using the form above!")
+
 
 def delete_confirmation_modal(group_data):
     group_id, group_name, color, remarks = group_data
@@ -136,23 +187,26 @@ def add_group_modal():
     add_group = st.expander("➕ Add New Task Group")
     with add_group:
         with st.form("add_group_form"):
-            group_name = st.text_input("Task Group Name", max_chars=50)
-            color = st.color_picker("Color", value="#8E44AD")  # Color picker added back
+            group_name = st.text_input("Group Name", max_chars=50)
+            color = st.color_picker("Color", value="#8E44AD")
             remarks = st.text_area("Remarks", max_chars=200)
             submitted = st.form_submit_button("Create Task Group")
 
             if submitted:
                 username = st.session_state.get("username")
-                conn = get_connection()
-                c = conn.cursor()
-                c.execute(
-                    "INSERT INTO groups (group_name, created_by, color, remarks) VALUES (?,?,?,?)",
-                    (group_name, username, color, remarks),
-                )
-                conn.commit()
-                st.success(f"Task Group '{group_name}' created!")
-                st.rerun()
-
+                try:
+                    conn = get_connection()
+                    c = conn.cursor()
+                    c.execute(
+                        "INSERT INTO groups (group_name, created_by, color, remarks) VALUES (?,?,?,?)",
+                        (group_name, username, color, remarks),
+                    )
+                    conn.commit()
+                    st.success(f"Group '{group_name}' created!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error creating group: {str(e)}")
+                    conn.rollback()
 
 
 def delete_group(group_id):
