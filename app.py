@@ -4,6 +4,7 @@ from db import get_connection, create_tables, insert_presets
 from auth import login, register
 from tasks import check_notifications
 from pages import dashboard, profile, overdue_tasks, task_page1, group_page
+from pathlib import Path
 
 # ========== FIRST AND ONLY set_page_config ==========
 st.set_page_config(
@@ -13,12 +14,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize database
-conn = get_connection()
-create_tables(conn)
-insert_presets(conn)
+# Get Base Directory (the directory where this script is located)
+BASE_DIRECTORY = Path(__file__).resolve().parent
 
-# Session state initialization
+# Define the path to the company logo image
+logo_file_path = BASE_DIRECTORY / "assets" / "icon.png"
+
+# Initialize session state
 if "logged_in" not in st.session_state:
     st.session_state.update({
         "logged_in": False,
@@ -29,6 +31,15 @@ if "logged_in" not in st.session_state:
         "task_filter": None,
         "view_preference": None
     })
+
+# Only display the company logo if the user is logged in
+if st.session_state.logged_in:
+    st.sidebar.image(str(logo_file_path), width=150)  # Adjust the width as needed
+
+# Initialize database
+conn = get_connection()
+create_tables(conn)
+insert_presets(conn)
 
 # Authentication check
 if not st.session_state.logged_in:
