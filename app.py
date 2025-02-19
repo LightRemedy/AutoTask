@@ -3,7 +3,7 @@ import datetime
 from db import get_connection, create_tables, insert_presets
 from auth import login, register
 from tasks import check_notifications
-from pages import dashboard, profile, overdue_tasks, task_page1, group_page
+from pages import dashboard, profile, overdue_tasks, task_page1, group_page, group_details
 from pathlib import Path
 
 # ========== FIRST AND ONLY set_page_config ==========
@@ -119,7 +119,7 @@ with st.sidebar:
             st.session_state.current_page = page_name
 
     # Admin time controls
-    if st.session_state.username == "admin":
+    if st.session_state.username == "admin" :
         st.divider()
         st.header("⏰ Debug Controls")
         new_date = st.date_input("Mock Date", st.session_state.mock_now)
@@ -151,5 +151,7 @@ elif st.session_state.current_page == "Overdue Tasks":
     overdue_tasks.show_overdue_tasks()
 elif st.session_state.current_page == "User Profile":
     profile.show_profile()
+elif st.session_state.current_page == "Group Details":
+   group_details.show()
 
 conn.close()

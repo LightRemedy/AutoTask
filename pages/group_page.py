@@ -2,7 +2,7 @@ import streamlit as st
 from db import get_connection
 
 def show_group_page():
-    st.title("📦 Task Groups")
+    st.title("📦 Task Groups_2")
     username = st.session_state.get("username")
 
     if not username:
@@ -86,7 +86,7 @@ def show_group_page():
                 """, unsafe_allow_html=True)
 
                 # Content row
-                cols = st.columns([6, 2, 2])
+                cols = st.columns([4, 2, 2, 2])
                 with cols[0]:
                     status = get_group_status(conn, group_id)
                     st.markdown(f"**{group_name}** {get_status_badge(status)}", unsafe_allow_html=True)
@@ -101,6 +101,11 @@ def show_group_page():
                 with cols[2]:
                     if st.button("🗑️ Delete", key=f"del_{group_id}"):
                         st.session_state.delete_group = group
+                        st.rerun()
+                with cols[3]:
+                    if st.button("👁️ View", key=f"view_{group_id}"):
+                        st.session_state.current_page = "Group Details"
+                        st.session_state.current_view_group = group_id
                         st.rerun()
 
                 st.markdown("</div>", unsafe_allow_html=True)
