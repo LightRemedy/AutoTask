@@ -34,7 +34,7 @@ if "logged_in" not in st.session_state:
 
 # Only display the company logo if the user is logged in
 if st.session_state.logged_in:
-    st.sidebar.image(str(logo_file_path), width=150)  # Adjust the width as needed
+    st.sidebar.image(str(logo_file_path), width=250)  # Adjust the width as needed
 
 # Initialize database
 conn = get_connection()
