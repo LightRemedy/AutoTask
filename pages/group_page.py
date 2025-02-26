@@ -2,7 +2,7 @@ import streamlit as st
 from db import get_connection
 
 def show_group_page():
-    st.title("📦 Task Groups_2")
+    st.title("📦 Task Groups")
     username = st.session_state.get("username")
 
     if not username:
