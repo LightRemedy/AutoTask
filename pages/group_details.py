@@ -282,26 +282,48 @@ def delete_task_modal():
 # Helper functions remain unchanged
 
 
-# Helper Functions
+
+
 def get_task_status(conn, task_id):
     c = conn.cursor()
-    c.execute("SELECT completed, due_date FROM tasks WHERE task_id=?", (task_id,))
+    
+    # Get current date from mock system
+    current_date = st.session_state.get("mock_now", datetime.date.today())
+    
+    # Get task details
+    c.execute("""
+        SELECT completed, due_date 
+        FROM tasks 
+        WHERE task_id = ?
+    """, (task_id,))
     completed, due_date = c.fetchone()
     
+    # Completed tasks
     if completed:
         return "completed"
     
+    # Convert string date to date object
     due_date = datetime.date.fromisoformat(due_date)
-    if due_date < datetime.date.today():
+    
+    # Overdue check
+    if due_date < current_date:
         return "offtrack"
     
-    c.execute('''
-        SELECT COUNT(*) FROM task_link
-        WHERE task_id = ? AND pre_task_id IN (
+    # Prerequisite check
+    c.execute("""
+        SELECT COUNT(*) 
+        FROM task_link 
+        WHERE task_id = ? 
+          AND pre_task_id IN (
             SELECT task_id FROM tasks WHERE completed = 0
-        )
-    ''', (task_id,))
-    return "offtrack" if c.fetchone()[0] > 0 else "ontrack"
+          )
+    """, (task_id,))
+    incomplete_prereqs = c.fetchone()[0]
+    
+    # Status determination
+    if incomplete_prereqs > 0:
+        return "offtrack"
+    return "ontrack"
 
 def get_group_status(conn, group_id):
     c = conn.cursor()

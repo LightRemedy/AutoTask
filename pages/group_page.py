@@ -12,7 +12,7 @@ def show_group_page():
     handle_modals()
 
     # Add Group Section
-    with st.expander("➕ Add New Task Group", expanded=True):
+    with st.expander("➕ Add New Task Group", expanded=False):
         group_type = st.radio(
             "Group Type", 
             ("Create New", "Import Template"),
