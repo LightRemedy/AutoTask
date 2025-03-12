@@ -41,8 +41,12 @@ def show():
     st.markdown(f"**Current Status:** {get_status_badge(status)}", unsafe_allow_html=True)
 
     # Add Task Section
+    
+    # Add Task Section (updated with prerequisites)
+    # In the Add Task Section
     with st.expander("➕ Add New Task", expanded=False):
-        with st.form("add_task_form"):
+        with st.form("add_task_form"):  # Line 44
+            # INDENT EVERYTHING INSIDE THE FORM BY 4 SPACES
             task_name = st.text_input("Task Name*", max_chars=100)
             due_date = st.date_input("Due Date*", min_value=datetime.date.today())
             notification_days = st.selectbox(
@@ -51,19 +55,46 @@ def show():
                 format_func=lambda x: f"{x} days before" if x > 0 else "On due date"
             )
             
+            # Prerequisite selection
+            c.execute('''
+                SELECT task_id, task_name, due_date 
+                FROM tasks 
+                WHERE group_id = ? AND due_date < ?
+                ORDER BY due_date
+            ''', (group_id, due_date))
+            prerequisites = c.fetchall()
+            prereq_options = {t[0]: f"{t[1]} ({t[2]})" for t in prerequisites}
+            
+            selected_prereqs = st.multiselect(
+                "Prerequisite Tasks",
+                options=list(prereq_options.keys()),
+                format_func=lambda x: prereq_options[x]
+            )
+
             if st.form_submit_button("Create Task"):
                 if task_name and due_date:
                     try:
+                        # Insert task
                         c.execute('''
                             INSERT INTO tasks 
                             (task_name, due_date, notification_days, group_id, created_by)
                             VALUES (?,?,?,?,?)
                         ''', (task_name, due_date, notification_days, 
                             group_id, st.session_state.username))
+                        new_task_id = c.lastrowid
+                        
+                        # Insert prerequisites
+                        for prereq_id in selected_prereqs:
+                            c.execute('''
+                                INSERT INTO task_link (task_id, pre_task_id)
+                                VALUES (?,?)
+                            ''', (new_task_id, prereq_id))
+                        
                         conn.commit()
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error creating task: {str(e)}")
+
 
     # Tasks List
     st.subheader("📋 Tasks")
@@ -87,7 +118,7 @@ def show():
         for task in tasks:
             task_id, name, due_date, completed, prerequisites = task
             with st.container(border=True):
-                cols = st.columns([5, 2, 1, 1, 1, 1])
+                cols = st.columns([5, 1, 1, 1, 1])  # Reduced to 5 columns
                 
                 status = get_task_status(conn, task_id)
                 formatted_date = datetime.date.fromisoformat(due_date).strftime('%d %b %Y')
@@ -98,30 +129,28 @@ def show():
                     st.markdown(get_status_badge(status), unsafe_allow_html=True)
                     st.caption(f"📅 {formatted_date}")
 
+                # Complete button moved to first position
                 with cols[1]:
-                    if prereq_list:
-                        with st.popover("🔗 Requires"):
-                            for p in prereq_list:
-                                st.markdown(f"- {p}")
-
-                with cols[2]:
-                    if st.button("👁️", key=f"view_{task_id}"):
-                        st.session_state.view_task = task_id
-                        st.rerun()
-
-                with cols[3]:
                     if not completed and status != "offtrack":
                         if st.button("✅", key=f"complete_{task_id}"):
                             c.execute("UPDATE tasks SET completed=1 WHERE task_id=?", (task_id,))
                             conn.commit()
                             st.rerun()
 
-                with cols[4]:
+                # View button moved next to Edit
+                with cols[2]:
+                    if st.button("👁️", key=f"view_{task_id}"):
+                        st.session_state.view_task = task_id
+                        st.rerun()
+
+                # Edit button
+                with cols[3]:
                     if st.button("✏️", key=f"edit_{task_id}"):
                         st.session_state.edit_task = task_id
                         st.rerun()
 
-                with cols[5]:
+                # Delete button
+                with cols[4]:
                     if st.button("🗑️", key=f"del_{task_id}"):
                         st.session_state.delete_task = task_id
                         st.rerun()
