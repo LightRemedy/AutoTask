@@ -1,8 +1,6 @@
 DB
 
-group(group_id,group_name,created_by,color,remarks)
 
-- to add isTemplate, so if its template can use to duplicate
 
 tasks(task_id,template_id,task_name,notification_days,due_date,completed,notified,group_id,created_by)
 
