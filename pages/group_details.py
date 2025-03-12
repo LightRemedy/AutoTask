@@ -59,9 +59,9 @@ def show():
             c.execute('''
                 SELECT task_id, task_name, due_date 
                 FROM tasks 
-                WHERE group_id = ? AND due_date < ?
+                WHERE group_id = ? 
                 ORDER BY due_date
-            ''', (group_id, due_date))
+            ''', (group_id, ))
             prerequisites = c.fetchall()
             prereq_options = {t[0]: f"{t[1]} ({t[2]})" for t in prerequisites}
             
