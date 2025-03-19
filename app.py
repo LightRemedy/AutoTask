@@ -3,7 +3,7 @@ import datetime
 from db import get_connection, create_tables, insert_presets
 from auth import login, register
 from tasks import check_notifications
-from pages import dashboard, profile, overdue_tasks, task_page1, group_page, group_details
+from pages import dashboard, profile, overdue_tasks, task_page, group_page, group_details
 from pathlib import Path
 
 # ========== FIRST AND ONLY set_page_config ==========
@@ -143,8 +143,13 @@ check_notifications(st.session_state.mock_now)
 
 if st.session_state.current_page == "Dashboard":
     dashboard.show_dashboard()
+<<<<<<< HEAD
 #elif st.session_state.current_page == "Task Page1":
   #  task_page1.show_task_page1()
+=======
+elif st.session_state.current_page == "Task Page1":
+    task_page.show_task_page()
+>>>>>>> e9d6f6d6e4f75602045f0c2406b8ee6290827fb4
 elif st.session_state.current_page == "Group Page":
     group_page.show_group_page()
 elif st.session_state.current_page == "Overdue Tasks":
