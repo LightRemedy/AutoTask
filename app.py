@@ -53,7 +53,7 @@ with st.sidebar:
     # Original navigation buttons
     nav_mapping = {
         "📊 Dashboard": "Dashboard",
-        "📝 Tasks": "Task Page1", 
+        "📝 Tasks": "Task Page", 
         "🗂️ Task Groups": "Group Page",
         "⚠️ Overdue Tasks": "Overdue Tasks",
         "👤 User Profile": "User Profile"
@@ -88,7 +88,7 @@ check_notifications(st.session_state.mock_now)
 
 if st.session_state.current_page == "Dashboard":
     dashboard.show_dashboard()
-elif st.session_state.current_page == "Task Page1":
+elif st.session_state.current_page == "Task Page":
     task_page.show_task_page()
 elif st.session_state.current_page == "Group Page":
     group_page.show_group_page()
