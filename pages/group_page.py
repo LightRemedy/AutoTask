@@ -2,7 +2,17 @@ import streamlit as st
 from db import get_connection
 import datetime
 
+### Group Page Module
+### This module manages the main group listing page, providing functionality for:
+# - Creating new task groups
+# - Importing groups from templates
+# - Managing existing groups (view, edit, delete)
+# - Displaying group status and progress
+
 def show_group_page():
+    ### Main function to display and manage task groups
+    # Shows group creation form and lists all existing groups
+    
     st.title("📦 Task Groups")
     username = st.session_state.get("username")
     conn = get_connection()
@@ -142,6 +152,8 @@ def show_group_page():
     conn.close()
 
 def handle_modals():
+    ### Modal Dialog Manager
+    # Controls which modal to display based on user actions
     if "delete_group" in st.session_state:
         delete_group_modal()
     elif "edit_group" in st.session_state:
@@ -149,6 +161,9 @@ def handle_modals():
 
 @st.dialog("Edit Group", width="large")
 def edit_group_modal():
+    ### Group Edit Modal
+    # Provides form to modify existing group properties:
+    # - Name, color, remarks, template status
     group_id, name, color, remarks, is_template = st.session_state.edit_group
     conn = get_connection()
     try:
@@ -179,6 +194,9 @@ def edit_group_modal():
 
 @st.dialog("Confirm Deletion", width="small")
 def delete_group_modal():
+    ### Group Deletion Modal
+    # Confirmation dialog for group deletion
+    # Handles cleanup of associated tasks
     group_id = st.session_state.delete_group
     st.warning("This will permanently delete the group and all its tasks!")
     col1, col2 = st.columns(2)
@@ -202,6 +220,12 @@ def delete_group_modal():
             st.rerun()
 
 def get_group_status(conn, group_id):
+    ### Group Status Calculator
+    # Determines group status based on task completion:
+    # * offtrack: Has overdue tasks
+    # * ontrack: Has pending tasks (not overdue)
+    # * completed: All tasks completed
+    # * inactive: No tasks
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM tasks WHERE group_id=? AND completed=0 AND due_date < date('now')", (group_id,))
     overdue = c.fetchone()[0]
@@ -216,6 +240,13 @@ def get_group_status(conn, group_id):
     return "completed" if total > 0 else "inactive"
 
 def get_status_badge(status):
+    ### Status Badge Generator
+    # Creates HTML span element for visual status representation
+    # Colors:
+    # * Red: offtrack
+    # * Yellow: ontrack
+    # * Green: completed
+    # * Grey: inactive
     style = "border-radius:9px; padding:0 7px; font-size:13px; color:white;"
     colors = {
         "offtrack": "#e74c3c", 
@@ -226,6 +257,9 @@ def get_status_badge(status):
     return f'<span style="{style} background-color:{colors[status]}">{status.title()}</span>'
 
 def get_task_count(conn, group_id):
+    ### Task Counter
+    # Calculates completion statistics for a group
+    # Returns: tuple of (completed_tasks, total_tasks)
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM tasks WHERE group_id=? AND completed=1", (group_id,))
     completed = c.fetchone()[0]

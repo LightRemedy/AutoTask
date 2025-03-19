@@ -2,10 +2,22 @@ import streamlit as st
 import datetime
 from db import get_connection
 
-def show_task_page1():
+### Task Page Module
+# This module handles the task list view and management, providing:
+# * Date-based task navigation
+# * Multiple view options for tasks
+# * Task completion and reminder functionality
+# * Pagination for upcoming tasks
+
+def show_task_page():
+    ### Main Task Display Function
+    # Shows tasks based on date selection and view preference
+    
     st.title("📝 Task Page")
     username = st.session_state.get("username")
 
+    ### Authentication Check
+    # Ensures user is logged in before showing tasks
     if not username:
         st.warning("Please log in to view tasks.")
         return
@@ -13,12 +25,16 @@ def show_task_page1():
     conn = get_connection()
     c = conn.cursor()
 
-    # --- Date Navigation ---
+    ### Date Navigation Section
+    # Allows users to move between dates
+    # Maintains selected date in session state
     st.subheader("📅 Task Date")
     today = datetime.date.today()
     if "task_date" not in st.session_state:
         st.session_state.task_date = today
 
+    ### Date Navigation Controls
+    # Previous day, current date display, next day buttons
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("⏪ Previous Day"):
@@ -31,15 +47,19 @@ def show_task_page1():
             st.session_state.task_date += datetime.timedelta(days=1)
             st.rerun()
 
-    # --- View Selection ---
+    ### View Selection Section
+    # Allows switching between upcoming tasks and daily view
     st.subheader("👓 View Options")
     view_options = ["📅 Upcoming Tasks", "📅 All Tasks for Day"]
     selected_view = st.radio("Select View", view_options, horizontal=True)
 
-    # --- Task Display ---
+    ### Task List Section
     st.subheader("📋 Task List")
 
-    # Load tasks based on selected view
+    ### Task Query Logic
+    # Fetches tasks based on selected view:
+    # - Upcoming Tasks: Next 5 tasks from selected date
+    # - All Tasks: All tasks for selected date
     task_date_str = st.session_state.task_date.strftime("%Y-%m-%d")
     if selected_view == "📅 Upcoming Tasks":
         c.execute(
@@ -61,7 +81,12 @@ def show_task_page1():
         )
     tasks = c.fetchall()
 
-    # Display tasks
+    ### Task Display Loop
+    # Shows each task with:
+    # * Task name (strikethrough if completed)
+    # * Due date
+    # * Complete button (if not completed)
+    # * Reminder button
     if tasks:
         for task in tasks:
             task_id, group_id, task_name, due_date, completed = task
@@ -84,7 +109,9 @@ def show_task_page1():
                 if st.button("⏰ Reminder", key=f"reminder_{task_id}"):
                     st.info(f"Reminder sent for task: {task_name}")
 
-        # Load More Button (if applicable)
+        ### Pagination Section
+        # Shows 'Load More' button for upcoming tasks view
+        # when more tasks are available
         if selected_view == "📅 Upcoming Tasks":
             c.execute(
                 """
@@ -102,7 +129,8 @@ def show_task_page1():
     else:
         st.info("No tasks found for the selected date.")
 
-    # --- Add Task Button ---
+    ### Task Creation Section
+    # Button to add new tasks (placeholder for future implementation)
     if st.button("➕ Add Task"):
         # TODO: Implement Add Task functionality
         st.info("Adding task (functionality to be implemented)")

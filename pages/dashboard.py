@@ -3,7 +3,14 @@ import datetime
 from db import get_connection
 from streamlit_calendar import calendar as st_calendar
 
+### Dashboard Module ,This module provides a dashboard interface for users to view their tasks and manage their viewing preferences (calendar/list view)
+
 def show_dashboard():
+    ### Main dashboard function that displays:
+    # 1. User statistics (pending and completed tasks)
+    # 2. View preference selection (calendar/list view)
+    # 3. Interactive calendar/list component with task visualization
+    
     st.title("📊 Dashboard")
     username = st.session_state.get("username")
 
@@ -14,7 +21,9 @@ def show_dashboard():
     conn = get_connection()
     c = conn.cursor()
 
-    # --- Stats Section ---
+    ### Statistics Section
+    # Displays clickable buttons showing pending and completed task counts
+    # Clicking these buttons navigates to the Task Page with appropriate filters
     st.subheader("📊 Statistics")
     col1, col2 = st.columns(2)
 
@@ -23,7 +32,7 @@ def show_dashboard():
     pending_tasks = c.fetchone()[0]
     if col1.button(f"🔄 Pending Tasks: {pending_tasks}", use_container_width=True):
         st.session_state.task_filter = "pending"
-        st.session_state.current_page = "Task Page1"
+        st.session_state.current_page = "Task Page"
         st.rerun()
 
     # Total completed tasks
@@ -31,10 +40,12 @@ def show_dashboard():
     completed_tasks = c.fetchone()[0]
     if col2.button(f"✅ Completed Tasks: {completed_tasks}", use_container_width=True):
         st.session_state.task_filter = "completed"
-        st.session_state.current_page = "Task Page1"
+        st.session_state.current_page = "Task Page"
         st.rerun()
 
-    # --- View Selection ---
+    ### View Preference Section
+    # Allows users to switch between calendar and list views
+    # Saves the preference in the database for future sessions
     st.subheader("📅 Task View")
     c.execute("SELECT view_preference FROM users WHERE username=?", (username,))
     result = c.fetchone()
@@ -55,7 +66,10 @@ def show_dashboard():
         conn.commit()
         st.rerun()
 
-    # --- Calendar/List Configuration ---
+    ### Calendar Configuration
+    # Sets up the display options for both calendar and list views
+    # Calendar view shows a monthly grid
+    # List view shows tasks in a linear format
     events = get_events(username)
     
     if view_preference == 'calendar':
@@ -83,7 +97,8 @@ def show_dashboard():
             "height": 600
         }
 
-    # Render the calendar component
+    ### Render Calendar Component
+    # Attempts to render the calendar/list view with error handling
     try:
         calendar_component = st_calendar(
             events=events,
@@ -96,6 +111,14 @@ def show_dashboard():
         st.error(f"Error rendering view: {str(e)}")
 
 def get_events(username):
+    ### Helper function to fetch and format task data for calendar display
+    # Retrieves tasks from database and converts them to calendar events
+    # Returns: List of event dictionaries with:
+    #   - title: Task name
+    #   - start: Due date
+    #   - allDay: Always set to True
+    #   - color: Green for completed tasks, orange for pending
+    
     conn = get_connection()
     c = conn.cursor()
     c.execute("""

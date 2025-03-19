@@ -2,7 +2,16 @@ import streamlit as st
 from db import get_connection
 import datetime
 
+### Group Details Module
+# This module handles the detailed view of a group, including:
+# - Group information display
+# - Task management (add, edit, delete, view)
+# - Status tracking and visualization
+# - Prerequisites handling for tasks
+
 def show():
+    ### Main function to display group details and manage tasks
+    # Handles navigation, group info, and task operations
     if "current_view_group" not in st.session_state:
         st.error("No group selected")
         return
@@ -17,7 +26,8 @@ def show():
     conn = get_connection()
     c = conn.cursor()
 
-    # Group details display
+    ### Group Information Section
+    # Fetches and displays basic group details including name and template status
     c.execute('''
         SELECT group_id, group_name, created_by, color, remarks, isTemplate 
         FROM groups WHERE group_id = ?
@@ -96,7 +106,8 @@ def show():
                         st.error(f"Error creating task: {str(e)}")
 
 
-    # Tasks List
+    ### Tasks List Section
+    # Displays all tasks in the group with their status and actions
     st.subheader("📋 Tasks")
     c.execute('''
         SELECT t.task_id, t.task_name, t.due_date, t.completed,
@@ -164,6 +175,8 @@ def show():
     conn.close()
 
 def handle_modals():
+    ### Modal Manager
+    # Controls which modal dialog to display based on user actions
     if "delete_task" in st.session_state:
         delete_task_modal()
     elif "edit_task" in st.session_state:
@@ -173,6 +186,9 @@ def handle_modals():
 
 @st.dialog("Task Details")
 def view_task_modal():
+    ### Task Details Modal
+    # Displays comprehensive information about a selected task
+    # Shows: name, status, due date, notifications, and prerequisites
     task_id = st.session_state.view_task
     conn = get_connection()
     try:
@@ -210,6 +226,9 @@ def view_task_modal():
 
 @st.dialog("Edit Task")
 def edit_task_modal():
+    ### Task Edit Modal
+    # Provides form to modify existing task details
+    # Includes: name, due date, notifications, and completion status
     task_id = st.session_state.edit_task
     conn = get_connection()
     try:
@@ -257,6 +276,9 @@ def edit_task_modal():
 
 @st.dialog("Confirm Deletion")
 def delete_task_modal():
+    ### Task Deletion Modal
+    # Confirmation dialog for task deletion
+    # Handles both task and its dependency cleanup
     task_id = st.session_state.delete_task
     st.warning("This will permanently delete the task and its dependencies!")
     col1, col2 = st.columns(2)
@@ -281,10 +303,13 @@ def delete_task_modal():
 
 # Helper functions remain unchanged
 
-
-
-
 def get_task_status(conn, task_id):
+    ### Task Status Calculator
+    # Determines task status based on:
+    # * Completion status
+    # * Due date (checks for overdue)
+    # * Prerequisites completion
+    # Returns: 'completed', 'offtrack', or 'ontrack'
     c = conn.cursor()
     
     # Get current date from mock system
@@ -326,6 +351,9 @@ def get_task_status(conn, task_id):
     return "ontrack"
 
 def get_group_status(conn, group_id):
+    ### Group Status Calculator
+    # Determines overall group status based on its tasks
+    # Returns: 'offtrack', 'ontrack', 'completed', or 'inactive'
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM tasks WHERE group_id=? AND completed=0 AND due_date < date('now')", (group_id,))
     if c.fetchone()[0] > 0: return "offtrack"
@@ -337,6 +365,9 @@ def get_group_status(conn, group_id):
     return "completed" if c.fetchone()[0] > 0 else "inactive"
 
 def get_status_badge(status):
+    ### Status Badge Generator
+    # Creates HTML span element for visual status representation
+    # Color codes: red (offtrack), yellow (ontrack), green (completed), grey (inactive)
     style = "border-radius:9px; padding:0 7px; font-size:13px; color:white;"
     colors = {
         "offtrack": "#e74c3c", 
@@ -347,6 +378,9 @@ def get_status_badge(status):
     return f'<span style="{style} background-color:{colors[status]}">{status.title()}</span>'
 
 def get_task_count(conn, group_id):
+    ### Task Counter
+    # Calculates total and completed tasks in a group
+    # Returns: (completed_count, total_count)
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM tasks WHERE group_id=? AND completed=1", (group_id,))
     completed = c.fetchone()[0]
