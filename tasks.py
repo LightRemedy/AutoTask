@@ -20,15 +20,25 @@ def send_notification(task_id, task_name, due_date):
     st.info(f"Notification: Task '{task_name}' is due on {due_date}!")
 
 def check_notifications(current_date):
+    current_ordinal = current_date.toordinal()
     conn = get_connection()
     c = conn.cursor()
-    c.execute(
-        "SELECT task_id, task_name, due_date FROM tasks WHERE due_date <= ? AND completed=0 AND notified=0", 
-        (current_date.strftime('%Y-%m-%d'),)
-    )
+    
+    # Get tasks where notification should be triggered
+    c.execute('''
+        SELECT task_id, task_name, due_date 
+        FROM tasks 
+        WHERE (due_date - notification_days) <= ? 
+          AND completed=0 
+          AND notified=0
+    ''', (current_ordinal,))
+    
     due_tasks = c.fetchall()
     for task in due_tasks:
-        task_id, task_name, due_date = task
+        task_id, task_name, due_ordinal = task
+        due_date = datetime.date.fromordinal(due_ordinal)
         send_notification(task_id, task_name, due_date)
+        
+        # Update notified status
         c.execute("UPDATE tasks SET notified=1 WHERE task_id=?", (task_id,))
     conn.commit()
