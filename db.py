@@ -68,46 +68,36 @@ def create_tables(conn):
 
 def insert_presets(conn):
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM templates")
-    count = c.fetchone()[0]
-    if count == 0:
-        # Insert preset templates
-        c.execute("INSERT INTO templates (template_name, created_by) VALUES (?,?)",
-                  ("Primary/Secondary School", "admin"))
-        primary_template_id = c.lastrowid
-        c.execute("INSERT INTO templates (template_name, created_by) VALUES (?,?)",
-                  ("Enrollment for Uni", "admin"))
-        enrollment_template_id = c.lastrowid
-
-        # Preset due dates and tasks
-        school_due_date = datetime.date(2026, 1, 1)
-        primary_tasks = [
-            ("Reminder: Buy textbooks for next year", 60, (school_due_date - datetime.timedelta(days=60)).strftime('%Y-%m-%d')),
-            ("Task: Buy textbooks", 30, (school_due_date - datetime.timedelta(days=30)).strftime('%Y-%m-%d')),
-            ("Reminder: Buy reminder", 14, (school_due_date - datetime.timedelta(days=14)).strftime('%Y-%m-%d')),
-            ("D-Day: Buy textbooks", 0, school_due_date.strftime('%Y-%m-%d'))
+    c.execute("SELECT COUNT(*) FROM groups WHERE isTemplate=1")
+    if c.fetchone()[0] == 0:
+        # Insert as template groups
+        templates = [
+            ("School Template", "#3498db"),
+            ("University Template", "#e74c3c")
         ]
-        for task in primary_tasks:
-            c.execute(
-                "INSERT INTO tasks (template_id, task_name, notification_days, due_date) VALUES (?,?,?,?)",
-                (primary_template_id, task[0], task[1], task[2])
-            )
-
-        enrollment_due_date = datetime.date(2026, 1, 1)
-        enrollment_tasks = [
-            ("Reminder: Enroll for your course (30 days before)", 30, (enrollment_due_date - datetime.timedelta(days=30)).strftime('%Y-%m-%d')),
-            ("Reminder: Enroll for your course (14 days before)", 14, (enrollment_due_date - datetime.timedelta(days=14)).strftime('%Y-%m-%d')),
-            ("Reminder: Enroll for your course (7 days before)", 7, (enrollment_due_date - datetime.timedelta(days=7)).strftime('%Y-%m-%d')),
-            ("On Enrollment Day: Enroll for your course", 0, enrollment_due_date.strftime('%Y-%m-%d')),
-            ("Reminder: Email if you want to change course or withdraw (14 days before)", 14, (enrollment_due_date - datetime.timedelta(days=14)).strftime('%Y-%m-%d')),
-            ("Reminder: Email if you want to change course or withdraw (7 days before)", 7, (enrollment_due_date - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))
-        ]
-        for task in enrollment_tasks:
-            c.execute(
-                "INSERT INTO tasks (template_id, task_name, notification_days, due_date) VALUES (?,?,?,?)",
-                (enrollment_template_id, task[0], task[1], task[2])
-            )
+        
+        for name, color in templates:
+            c.execute('''
+                INSERT INTO groups 
+                (group_name, color, isTemplate, created_by)
+                VALUES (?,?,?,?)
+            ''', (name, color, 1, "admin"))
+            group_id = c.lastrowid
+            
+            # Add template tasks
+            tasks = [
+                ("Buy textbooks", 30, datetime.date(2025, 1, 1).toordinal()),
+                ("Submit forms", 7, datetime.date(2025, 1, 15).toordinal())
+            ]
+            for task in tasks:
+                c.execute('''
+                    INSERT INTO tasks 
+                    (group_id, task_name, notification_days, due_date)
+                    VALUES (?,?,?,?)
+                ''', (group_id, task[0], task[1], task[2]))
         conn.commit()
+
+
 def get_group_color(conn, group_id):
     c = conn.cursor()
     c.execute("SELECT color FROM groups WHERE group_id=?", (group_id,))
