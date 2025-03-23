@@ -1,102 +1,94 @@
 import streamlit as st
 import datetime
-from db import get_connection, create_tables, insert_presets
-from auth import login, register
-from tasks import check_notifications
-from pages import dashboard, profile, overdue_tasks, task_page, group_page, group_details, login_page
 from pathlib import Path
 
-# ========== FIRST AND ONLY set_page_config ==========
+from core.database import get_connection, create_tables, insert_presets
+from core.notification import check_notifications
+from modules import dashboard, login, tasks, groups, overdue, profile
+
+# App Configuration
 st.set_page_config(
     page_title="AutoTask",
     page_icon="📋",
-    layout="centered",
-    initial_sidebar_state="auto"
+    layout="centered"
 )
 
-# Get Base Directory (the directory where this script is located)
-BASE_DIRECTORY = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
+LOGO_PATH = BASE_DIR / "assets" / "icon.png"
 
-# Define the path to the company logo image
-logo_file_path = BASE_DIRECTORY / "assets" / "icon.png"
-
-# Initialize session state
+# Session Defaults
 if "logged_in" not in st.session_state:
     st.session_state.update({
         "logged_in": False,
-        "show_register": False,
         "username": None,
+        "show_register": False,
         "mock_now": datetime.date.today(),
         "current_page": "Dashboard",
         "task_filter": None,
         "view_preference": None
     })
 
-# Only display the company logo if the user is logged in
-if st.session_state.logged_in:
-    st.sidebar.image(str(logo_file_path), width=250)  # Adjust the width as needed
-
-# Initialize database
+# Database Setup
 conn = get_connection()
 create_tables(conn)
 insert_presets(conn)
 
-# Authentication check
+# Logo
+if st.session_state.logged_in:
+    st.sidebar.image(str(LOGO_PATH), width=240)
+
+# Auth Flow
 if not st.session_state.logged_in:
-    login_page.show_login_page()
+    login.show_login_page()
     st.stop()
 
-# Main app layout
+# Navigation Menu
 with st.sidebar:
     st.title("AutoTask Navigation")
-    
-    # Original navigation buttons
-    nav_mapping = {
+    nav_map = {
         "📊 Dashboard": "Dashboard",
-        "📝 Tasks": "Task Page", 
+        "📝 Tasks": "Task Page",
         "🗂️ Task Groups": "Group Page",
         "⚠️ Overdue Tasks": "Overdue Tasks",
         "👤 User Profile": "User Profile"
     }
-    
-    for btn_text, page_name in nav_mapping.items():
-        if st.button(btn_text, use_container_width=True):
-            st.session_state.current_page = page_name
+    for label, target in nav_map.items():
+        if st.button(label, use_container_width=True):
+            st.session_state.current_page = target
 
-    # Admin time controls
-    if st.session_state.username == "admin" :
+    if st.session_state.username == "admin":
         st.divider()
         st.header("⏰ Debug Controls")
         new_date = st.date_input("Mock Date", st.session_state.mock_now)
         if new_date != st.session_state.mock_now:
             st.session_state.mock_now = new_date
             st.rerun()
-        
-        if st.button("⏩ Fast Forward 1 Day"):
+        if st.button("⏩ Advance 1 Day"):
             st.session_state.mock_now += datetime.timedelta(days=1)
             st.rerun()
 
-    # Logout button
     st.divider()
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.username = None
         st.rerun()
 
-# Page routing
+# Notifications
 check_notifications(st.session_state.mock_now)
 
-if st.session_state.current_page == "Dashboard":
+# Page Routing
+page = st.session_state.current_page
+if page == "Dashboard":
     dashboard.show_dashboard()
-elif st.session_state.current_page == "Task Page":
-    task_page.show_task_page()
-elif st.session_state.current_page == "Group Page":
-    group_page.show_group_page()
-elif st.session_state.current_page == "Overdue Tasks":
-    overdue_tasks.show_overdue_tasks()
-elif st.session_state.current_page == "User Profile":
+elif page == "Task Page":
+    tasks.show_task_page()
+elif page == "Group Page":
+    groups.show_group_page()
+elif page == "Overdue Tasks":
+    overdue.show_overdue_tasks()
+elif page == "User Profile":
     profile.show_profile()
-elif st.session_state.current_page == "Group Details":
-    group_details.show()
+elif page == "Group Details":
+    groups.show_group_details()
 
 conn.close()

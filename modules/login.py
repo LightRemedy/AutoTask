@@ -1,6 +1,8 @@
+#modules/login.py
 import streamlit as st
-from db import get_connection
-from auth import login, register
+from core.database import get_connection
+from core.auth import login, register
+
 
 def show_login_page():
     st.markdown("""
@@ -12,9 +14,32 @@ def show_login_page():
 
     col1, col2 = st.columns([1, 2])
     with col2:
-        st.title("AutoTask Login" if not st.session_state.show_register else "User Registration")
+        if not st.session_state.get("show_register", False):
+            st.title("🔐 AutoTask Login")
+            with st.form("login_form"):
+                username = st.text_input("Username")
+                password = st.text_input("Password", type="password")
+                if st.form_submit_button("Login"):
+                    if login(username, password):
+                        conn = get_connection()
+                        c = conn.cursor()
+                        c.execute("SELECT view_preference FROM users WHERE username=?", (username,))
+                        result = c.fetchone()
+                        st.session_state.update({
+                            "logged_in": True,
+                            "username": username,
+                            "view_preference": result[0] if result else "calendar",
+                            "current_page": "Dashboard"
+                        })
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials. Please try again.")
 
-        if st.session_state.show_register:
+            if st.button("Create New Account"):
+                st.session_state.show_register = True
+                st.rerun()
+        else:
+            st.title("📝 User Registration")
             with st.form("register_form"):
                 new_username = st.text_input("Username")
                 new_password = st.text_input("Password", type="password")
@@ -29,32 +54,8 @@ def show_login_page():
                         st.success("Registration successful! Please login.")
                         st.session_state.show_register = False
                         st.rerun()
-            
+
             if st.button("← Back to Login"):
                 st.session_state.show_register = False
                 st.rerun()
-        else:
-            with st.form("login_form"):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
 
-                if st.form_submit_button("Login"):
-                    if login(username, password):
-                        conn = get_connection()
-                        c = conn.cursor()
-                        c.execute("SELECT view_preference FROM users WHERE username=?", (username,))
-                        result = c.fetchone()
-                        
-                        st.session_state.update({
-                            "logged_in": True,
-                            "username": username,
-                            "view_preference": result[0] if result else "calendar",
-                            "current_page": "Dashboard"
-                        })
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials")
-            
-            if st.button("Create New Account"):
-                st.session_state.show_register = True
-                st.rerun()

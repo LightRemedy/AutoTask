@@ -1,15 +1,46 @@
-DB
+# AutoTask V2 🗂️
 
+AutoTask is a task and group scheduling app built with Streamlit. It features:
 
+- 📅 Calendar & list views
+- ✅ Task completion & overdue tracking
+- 🧱 Prerequisite task logic
+- 🗂️ Group management & templates
+- 👤 Profile and account updates
+- 🔐 Login / register functionality
 
-tasks(task_id,template_id,task_name,notification_days,due_date,completed,notified,group_id,created_by)
+---
 
-- to remove template_id, use group_id to link back to group
+## 🚀 Quick Start
 
-templates
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
 
-- To remove as application should use group and check if istemplate
+# 2. Run the Streamlit app
+streamlit run app.py
+```
 
-users(username,password,full_name,adress,gender,contact,timezone,email,view_preference)
+---
 
--
+## 🗂️ Project Structure
+
+```
+autotaskv2/
+├── app.py             # Main launcher
+├── core/              # DB and authentication logic
+├── modules/           # Feature pages (dashboard, groups, tasks...)
+├── utils/             # Shared tools
+├── assets/            # Images and logo
+├── .streamlit/        # Configs
+├── task_manager.db    # SQLite file (auto-generated)
+└── requirements.txt   # Dependencies
+```
+
+---
+
+## 👨‍💻 Tech Stack
+
+- Python 3.9+
+- Streamlit
+- SQLite (built-in)
