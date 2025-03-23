@@ -189,7 +189,7 @@ def show():
     handle_modals()
     conn.close()
 
-# [Rest of the code remains unchanged from your original version]
+
 
 
 @st.dialog("Edit Task")
