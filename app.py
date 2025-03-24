@@ -4,7 +4,7 @@ from pathlib import Path
 
 from core.database import get_connection, create_tables, insert_presets
 from core.notification import check_notifications
-from modules import dashboard, login, tasks, groups, overdue, profile
+from modules import dashboard, group_page, login, tasks, overdue, profile,group_details
 
 # App Configuration
 st.set_page_config(
@@ -83,12 +83,12 @@ if page == "Dashboard":
 elif page == "Task Page":
     tasks.show_task_page()
 elif page == "Group Page":
-    groups.show_group_page()
+    group_page.show_group_page()
 elif page == "Overdue Tasks":
     overdue.show_overdue_tasks()
 elif page == "User Profile":
     profile.show_profile()
 elif page == "Group Details":
-    groups.show_group_details()
+    group_details.show_group_details()
 
 conn.close()
