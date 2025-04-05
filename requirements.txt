@@ -1,0 +1,4 @@
+streamlit
+streamlit_calendar
+pathlib
+python-telegram-bot==20.8
