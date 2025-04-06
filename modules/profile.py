@@ -5,7 +5,7 @@ from core.database import get_connection
 
 def show_profile():
     """Displays and allows editing of the user's profile information."""
-    st.title("�� User Profile")
+    st.title("👤👤 User Profile")
     username = st.session_state.get("username")
 
     if not username:
