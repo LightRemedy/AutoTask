@@ -64,6 +64,9 @@ AutoTask is a sophisticated task and group scheduling application built with Str
    ```
 
 🌐 Live Demo: [AutoTask App](https://autotask.streamlit.app/)
+   ```bash
+   https://autotask.streamlit.app/
+   ```
 
 ## 🗂️ Project Structure
 
