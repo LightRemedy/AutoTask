@@ -2,6 +2,7 @@
 import streamlit as st
 from core.database import get_connection
 from typing import List, Tuple
+from datetime import datetime
 
 
 def show_overdue_tasks():
@@ -10,11 +11,16 @@ def show_overdue_tasks():
     conn = get_connection()
     c = conn.cursor()
 
+    # Get current date from session state (for mock date support) or use actual date
+    current_date = st.session_state.get('mock_now', datetime.now().date())
+    
     c.execute("""
         SELECT task_id, task_name, due_date
         FROM tasks
-        WHERE due_date < date('now') AND completed = 0
-    """)
+        WHERE due_date < ? 
+        AND completed = 0
+        AND created_by = ?
+    """, (current_date.strftime("%Y-%m-%d"), st.session_state.username))
 
     overdue = c.fetchall()
 
@@ -40,11 +46,15 @@ def show_overdue_tasks():
 def get_overdue_tasks(conn, username: str) -> List[Tuple]:
     """Fetches all overdue tasks from the database for a specific user."""
     c = conn.cursor()
+    current_date = st.session_state.get('mock_now', datetime.now().date())
+    
     c.execute("""
         SELECT task_id, task_name, due_date
         FROM tasks
-        WHERE due_date < date('now') AND completed = 0
-    """)
+        WHERE due_date < ?
+        AND completed = 0
+        AND created_by = ?
+    """, (current_date.strftime("%Y-%m-%d"), username))
     return c.fetchall()
 
 
@@ -62,9 +72,13 @@ def display_overdue_tasks(tasks: List[Tuple]) -> None:
                 st.caption(f"Due: {due}")
             with col2:
                 if st.button("✅ Mark Complete", key=f"overdue_{task_id}"):
+                    conn = get_connection()
+                    c = conn.cursor()
                     c.execute("UPDATE tasks SET completed = 1 WHERE task_id = ?", (task_id,))
                     conn.commit()
+                    conn.close()
                     st.rerun()
 
-    conn.close()
+    if 'conn' in locals():
+        conn.close()
     

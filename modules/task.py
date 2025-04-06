@@ -324,32 +324,32 @@ def get_task_count(conn, group_id: int) -> Tuple[int, int]:
 def get_group_status(conn, group_id: int) -> str:
     """Determines the current status of a task group (completed, offtrack, ontrack, or inactive)."""
     c = conn.cursor()
+    current_date = st.session_state.get('mock_now', datetime.datetime.now().date())
     
-    # First check if any task in the group is offtrack
+    # Check if any tasks are overdue (past due date)
     c.execute("""
-        SELECT t.task_id
-        FROM tasks t
-        WHERE t.group_id = ? AND t.completed = 0
-    """, (group_id,))
+        SELECT COUNT(*) 
+        FROM tasks 
+        WHERE group_id = ? 
+        AND completed = 0 
+        AND due_date < ?
+    """, (group_id, current_date.strftime("%Y-%m-%d")))
     
-    tasks = c.fetchall()
-    for task in tasks:
-        task_status = get_task_status(conn, task[0])
-        if task_status == "offtrack":
-            return "offtrack"
+    if c.fetchone()[0] > 0:
+        return "offtrack"
     
     # If no tasks are offtrack, check if there are any pending tasks
     c.execute("""
         SELECT COUNT(*) 
         FROM tasks 
-        WHERE group_id=? AND completed=0
+        WHERE group_id = ? AND completed = 0
     """, (group_id,))
     pending = c.fetchone()[0]
     if pending > 0:
         return "ontrack"
 
     # Check if any tasks exist
-    c.execute("SELECT COUNT(*) FROM tasks WHERE group_id=?", (group_id,))
+    c.execute("SELECT COUNT(*) FROM tasks WHERE group_id = ?", (group_id,))
     total = c.fetchone()[0]
     return "completed" if total > 0 else "inactive"
 
