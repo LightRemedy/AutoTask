@@ -63,6 +63,12 @@ AutoTask is a sophisticated task and group scheduling application built with Str
    streamlit run app.py
    ```
 
+4. Web Demo(optional)
+   ```bash
+   https://autotask.streamlit.app/
+   ```
+
+
 ## 🗂️ Project Structure
 
 ```
@@ -121,7 +127,7 @@ streamlit run app.py
 ## 🗂️ Project Structure
 
 ```
-autotaskv2/
+autotask/
 ├── app.py             # Main launcher
 ├── core/              # DB and authentication logic
 ├── modules/           # Feature pages (dashboard, groups, tasks...)
